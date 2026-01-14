@@ -70,7 +70,7 @@ class Matrix:
         else:
             raise TypeError("Type Error")
 
-    # ---------------- Operator overloads ----------------
+    #  Operator overloads
     def __add__(self, other):
         if isinstance(other, Matrix):
             return self.addition(other)
