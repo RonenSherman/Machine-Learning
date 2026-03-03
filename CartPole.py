@@ -12,9 +12,9 @@ class Network(nn.Module):
         # - Hidden layer: 32 neurons with ReLU activation
         # - Output: 2 values (probabilities for left/right actions)
         self.layers = nn.Sequential(
-            nn.Linear(4, 32),   # State → hidden layer
+            nn.Linear(4, 32),   # State -> hidden layer
             nn.ReLU(),          # Non-linear
-            nn.Linear(32, 2)    # Hidden layer → output (action)
+            nn.Linear(32, 2)    # Hidden layer -> output (action)
         )
 
     def forward(self, x):
@@ -55,7 +55,7 @@ def choose_action(obs):
     return action.item(), dist.log_prob(action)
 
 
-# Training Loop (the reinforcement part part of the code)
+# Training Loop (the reinforcement part of the code)
 for episode in range(200):
     # Reset environment at the start of each episode
     obs, info = env.reset()
@@ -95,9 +95,8 @@ for episode in range(200):
     # Normalize returns to stabilize training
     returns = (returns - returns.mean()) / (returns.std() + 1e-9)
 
-    # -------------------------------
+
     # Policy Gradient Loss
-    # -------------------------------
     loss = 0
     for log_prob, G in zip(log_probs, returns):
         # REINFORCE loss:

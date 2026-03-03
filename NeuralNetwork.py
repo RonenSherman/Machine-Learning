@@ -123,7 +123,7 @@ BATCH_SIZE = 32  # typical small batch for SGD
 for epoch in range(EPOCHS):
     start_time = time.perf_counter()
 
-    random.shuffle(training_data)  # key step for SGD randomness
+    random.shuffle(training_data)  #  SGD randomness
 
     # Loop through mini-batches
     for batch_start in range(0, len(training_data), BATCH_SIZE):
@@ -135,7 +135,7 @@ for epoch in range(EPOCHS):
 
     # Evaluate after each epoch
     correct = 0
-    for i in range(len(X_test)):  # test on all 10,000
+    for i in range(len(X_test)):  # test on 10,000
         prediction = NN.predict(list(X_test[i]))
         if prediction == Y_test[i]:
             correct += 1
