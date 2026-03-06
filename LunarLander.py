@@ -3,6 +3,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+TRAIN_FROM_SCRATCH = True
+MODEL_PATH = "lunarlander_a2c.pth"
+
 """
 Actor-Critic improves on REINFORCE because REINFORCE is a Monte Carlo method that only updates after an entire episode.
 This makes learning slow and unstable since the total return is very noisy.
@@ -33,8 +36,14 @@ class ActorCritic(nn.Module):
 render_mode = None
 env = gym.make("LunarLander-v3", render_mode=render_mode)
 
+
 model = ActorCritic()
-optimizer = optim.Adam(model.parameters(), lr=3e-4)
+
+if not TRAIN_FROM_SCRATCH:
+    model.load_state_dict(torch.load(MODEL_PATH))
+    model.eval()
+
+optimizer = None if not TRAIN_FROM_SCRATCH else optim.Adam(model.parameters(), lr=1e-4)
 
 gamma = 0.99
 
@@ -49,7 +58,13 @@ stop_exploring = False
 
 def choose_action(obs, deterministic=False):
     obs = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
-    logits, value = model(obs)
+    # only use no_grad when running trained model
+    if deterministic:
+        with torch.no_grad():
+            logits, value = model(obs)
+    else:
+        logits, value = model(obs)  # gradients enabled during training
+
     logits = logits.squeeze(0)
     value = value.squeeze(0)
     dist = torch.distributions.Categorical(logits=logits)
@@ -61,11 +76,12 @@ def choose_action(obs, deterministic=False):
         action = dist.sample()
         log_prob = dist.log_prob(action)
         entropy = dist.entropy()
+
     return action.item(), log_prob, entropy, value
 
 
 # Training loop
-for episode in range(5000):
+for episode in range(5000 if TRAIN_FROM_SCRATCH else 1000):
     obs, _ = env.reset()
     done = False
 
@@ -112,14 +128,16 @@ for episode in range(5000):
     entropy_bonus = entropies.mean()
 
     loss = actor_loss + 0.5 * critic_loss - entropy * entropy_bonus
-
-    optimizer.zero_grad()
-    loss.backward()
-    torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
-    optimizer.step()
+    if optimizer is not None and not stop_exploring:
+        optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
+        optimizer.step()
 
     episode_reward = rewards.sum().item()
     reward_history.append(episode_reward)
+
+
 
     # decides when to stop learning and to make the sim visible again
     if len(reward_history) >= 100:
@@ -128,5 +146,7 @@ for episode in range(5000):
             render_mode = 'human'
             env = gym.make("LunarLander-v3", render_mode=render_mode)
             stop_exploring = True
+            torch.save(model.state_dict(), MODEL_PATH)
+            print("Model saved.")
 
     print(f"Episode {episode} | Reward {episode_reward:.1f}")
