@@ -33,12 +33,11 @@ class ActorCritic(nn.Module):
         x = self.shared(x)
         return self.actor(x), self.critic(x)
 
-render_mode = None
+
+render_mode = None if TRAIN_FROM_SCRATCH else 'human'
 env = gym.make("LunarLander-v3", render_mode=render_mode)
 
-
 model = ActorCritic()
-
 if not TRAIN_FROM_SCRATCH:
     model.load_state_dict(torch.load(MODEL_PATH))
     model.eval()
@@ -47,7 +46,7 @@ optimizer = None if not TRAIN_FROM_SCRATCH else optim.Adam(model.parameters(), l
 
 gamma = 0.99
 
-#added this to make it explore less as it learns
+# added this to make it explore less as it learns
 initial_entropy = 0.01
 final_entropy = 0.0
 decay_steps = 5000
@@ -58,13 +57,7 @@ stop_exploring = False
 
 def choose_action(obs, deterministic=False):
     obs = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
-    # only use no_grad when running trained model
-    if deterministic:
-        with torch.no_grad():
-            logits, value = model(obs)
-    else:
-        logits, value = model(obs)  # gradients enabled during training
-
+    logits, value = model(obs)
     logits = logits.squeeze(0)
     value = value.squeeze(0)
     dist = torch.distributions.Categorical(logits=logits)
@@ -76,77 +69,77 @@ def choose_action(obs, deterministic=False):
         action = dist.sample()
         log_prob = dist.log_prob(action)
         entropy = dist.entropy()
-
     return action.item(), log_prob, entropy, value
 
 
-# Training loop
-for episode in range(5000 if TRAIN_FROM_SCRATCH else 1000):
+# Unified loop: trains if TRAIN_FROM_SCRATCH, else just runs feedforward
+for episode in range(5000):
     obs, _ = env.reset()
     done = False
+    total_reward = 0
 
-    log_probs = [] # for policy gradient
-    values = [] # for critic
-    rewards = [] # rewards
-    entropies = [] # exploration (think epsilon-greedy)
-    next_values = [] # TD learning
+    log_probs = []  # for policy gradient
+    values = []     # for critic
+    rewards = []    # rewards
+    entropies = []  # exploration (think epsilon-greedy)
+    next_values = []  # TD learning
 
     while not done:
-        action, log_prob, entropy, value = choose_action(obs, deterministic=stop_exploring)
+        action, log_prob, entropy, value = choose_action(obs, deterministic=stop_exploring or not TRAIN_FROM_SCRATCH)
         next_obs, reward, terminated, truncated, _ = env.step(action)
+        total_reward += reward
 
-        with torch.no_grad():
-            _, next_value = model(torch.tensor(next_obs, dtype=torch.float32).unsqueeze(0))
-            next_value = next_value.squeeze(0)
+        if TRAIN_FROM_SCRATCH:
+            with torch.no_grad():
+                _, next_value = model(torch.tensor(next_obs, dtype=torch.float32).unsqueeze(0))
+                next_value = next_value.squeeze(0)
 
-        log_probs.append(log_prob)
-        values.append(value)
-        rewards.append(reward)
-        entropies.append(entropy)
-        next_values.append(next_value)
+            log_probs.append(log_prob)
+            values.append(value)
+            rewards.append(reward)
+            entropies.append(entropy)
+            next_values.append(next_value)
 
         obs = next_obs
         done = terminated or truncated
 
-    values = torch.stack(values).view(-1)
-    next_values = torch.stack(next_values).view(-1)
-    rewards = torch.tensor(rewards, dtype=torch.float32)
+    if TRAIN_FROM_SCRATCH:
+        values = torch.stack(values).view(-1)
+        next_values = torch.stack(next_values).view(-1)
+        rewards_tensor = torch.tensor(rewards, dtype=torch.float32)
 
-    targets = rewards + gamma * next_values # bootstraps estimates
-    advantages = targets - values # advantage part of advantage actor critic, compares how much action actually helped
+        targets = rewards_tensor + gamma * next_values  # bootstraps estimates
+        advantages = targets - values
 
-    if advantages.std() > 0:
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        if advantages.std() > 0:
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
-    log_probs = torch.stack(log_probs)
-    entropies = torch.stack(entropies)
+        log_probs_tensor = torch.stack(log_probs)
+        entropies_tensor = torch.stack(entropies)
 
-    entropy = max(final_entropy, initial_entropy * (1 - episode / decay_steps))
+        entropy = max(final_entropy, initial_entropy * (1 - episode / decay_steps))
 
-    actor_loss = -(log_probs * advantages.detach()).mean()
-    critic_loss = advantages.pow(2).mean()
-    entropy_bonus = entropies.mean()
+        actor_loss = -(log_probs_tensor * advantages.detach()).mean()
+        critic_loss = advantages.pow(2).mean()
+        entropy_bonus = entropies_tensor.mean()
 
-    loss = actor_loss + 0.5 * critic_loss - entropy * entropy_bonus
-    if optimizer is not None and not stop_exploring:
+        loss = actor_loss + 0.5 * critic_loss - entropy * entropy_bonus
+
         optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
         optimizer.step()
 
-    episode_reward = rewards.sum().item()
-    reward_history.append(episode_reward)
+        reward_history.append(total_reward)
 
+        # decides when to stop learning and to make the sim visible again
+        if len(reward_history) >= 100:
+            avg_reward = sum(reward_history[-100:]) / 100
+            if avg_reward > 150 and render_mode != 'human':
+                render_mode = 'human'
+                env = gym.make("LunarLander-v3", render_mode=render_mode)
+                torch.save(model.state_dict(), MODEL_PATH)
+                print("Model saved.")
+                stop_exploring = True
 
-
-    # decides when to stop learning and to make the sim visible again
-    if len(reward_history) >= 100:
-        avg_reward = sum(reward_history[-100:]) / 100
-        if avg_reward > 200:
-            render_mode = 'human'
-            env = gym.make("LunarLander-v3", render_mode=render_mode)
-            stop_exploring = True
-            torch.save(model.state_dict(), MODEL_PATH)
-            print("Model saved.")
-
-    print(f"Episode {episode} | Reward {episode_reward:.1f}")
+    print(f"Episode {episode} | Reward {total_reward:.1f}")
