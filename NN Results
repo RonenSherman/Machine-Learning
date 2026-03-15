@@ -255,4 +255,17 @@ Episode 198  |  Reward = 500.0
 Episode 199  |  Reward = 500.0
 
 
+Sample of trained LunarLander.py after ~5000 episodes
+Episode 605 | Reward 258.3
+Episode 606 | Reward 246.0
+Episode 607 | Reward 186.6
+Episode 608 | Reward 198.8
+Episode 609 | Reward 146.6
+Episode 610 | Reward 180.2
+Episode 611 | Reward 213.5
+Episode 612 | Reward 176.1
+Episode 613 | Reward 136.3
+Episode 614 | Reward 171.8
+Episode 615 | Reward 163.5
+Episode 616 | Reward 232.5
 

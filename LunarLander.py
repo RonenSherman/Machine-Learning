@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-TRAIN_FROM_SCRATCH = True
+TRAIN_FROM_SCRATCH = False
 MODEL_PATH = "lunarlander_a2c.pth"
 
 """
@@ -60,9 +60,7 @@ stop_exploring = False
 def choose_action(obs, deterministic=False):
 
     obs = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
-
     logits, value = model(obs)
-
     logits = logits.squeeze(0)
     value = value.squeeze(0)
 
@@ -84,7 +82,6 @@ def choose_action(obs, deterministic=False):
 def compute_returns(rewards, last_value, done):
 
     returns = []
-
     R = 0 if done else last_value
 
     for r in reversed(rewards):
@@ -94,11 +91,8 @@ def compute_returns(rewards, last_value, done):
     return torch.tensor(returns, dtype=torch.float32)
 
 
-# Unified loop: trains if TRAIN_FROM_SCRATCH, else just runs feedforward
+# Main loop trains if TRAIN_FROM_SCRATCH, else just demos trained model
 for episode in range(5000):
-    if episode == 100:
-        torch.save(model.state_dict(), MODEL_PATH)
-
     obs, _ = env.reset()
 
     done = False
@@ -117,7 +111,6 @@ for episode in range(5000):
         )
 
         next_obs, reward, terminated, truncated, _ = env.step(action)
-
         total_reward += reward
 
         if TRAIN_FROM_SCRATCH:
@@ -136,49 +129,38 @@ for episode in range(5000):
             last_value = 0
 
         returns = compute_returns(rewards, last_value, done)
-
         values = torch.stack(values).squeeze()
         log_probs = torch.stack(log_probs)
         entropies = torch.stack(entropies)
-
         advantages = returns - values
 
         if advantages.numel() > 1:
             advantages = (advantages - advantages.mean()) / (advantages.std(unbiased=False) + 1e-8)
 
         entropy_coef = max(final_entropy, initial_entropy * (1 - episode / decay_steps))
-
         actor_loss = -(log_probs * advantages.detach()).mean()
-
         critic_loss = advantages.pow(2).mean()
-
         entropy_bonus = entropies.mean()
 
         loss = actor_loss + 0.5 * critic_loss - entropy_coef * entropy_bonus
 
         optimizer.zero_grad()
-
         loss.backward()
 
         torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
-
         optimizer.step()
 
         reward_history.append(total_reward)
 
         # decides when to stop learning and to make the sim visible again
         if len(reward_history) >= 100:
-
             avg_reward = sum(reward_history[-100:]) / 100
 
             if avg_reward > 100  and render_mode != 'human':
                 render_mode = 'human'
                 env = gym.make("LunarLander-v3", render_mode=render_mode)
-
                 torch.save(model.state_dict(), MODEL_PATH)
-
                 print("Model saved.")
-
                 stop_exploring = True
 
     print(f"Episode {episode} | Reward {total_reward:.1f}")
