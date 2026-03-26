@@ -7,6 +7,8 @@ Project 2: Cartpole RL
 
 Project 3: Lunar Lander RL
 
+Project 4: Humanoid Standup and walking RL
+
 
 Learning Sources:
 http://www.incompleteideas.net/book/RLbook2020.pdf
