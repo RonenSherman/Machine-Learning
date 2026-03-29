@@ -49,7 +49,7 @@ eval_callback = EvalCallback(
 
 # Train the model
 model.learn(
-    total_timesteps=1_000_000,
+    total_timesteps=1000000,
     reset_num_timesteps=False,  # continue counting if resuming
     callback=[save_latest_callback, eval_callback]
 )

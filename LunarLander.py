@@ -24,6 +24,7 @@ class ActorCritic(nn.Module):
             nn.Linear(8, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
+            nn.Linear(256, 256),
             nn.ReLU()
         )
 
