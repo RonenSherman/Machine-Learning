@@ -1,11 +1,13 @@
-# Neural-Networks
-Repository for Game and App development for Mr. Miyoshi with focus on Neural Networks
+# Neural-Networks 
+Repository for Game and App development for Mr. Miyoshi with focus on Neural Networks and machine learning. 
 
 Project 1: Handwritten digit recognizer using MNIST dataset
 
 Project 2: Cartpole RL 
 
 Project 3: Lunar Lander RL
+
+Project 4: Humanoid Standup and walking RL
 
 
 Learning Sources:
