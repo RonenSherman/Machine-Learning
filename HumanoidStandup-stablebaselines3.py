@@ -30,6 +30,7 @@ class SaveLatestCallback(BaseCallback):
     def _on_step(self):
         if self.n_calls % self.save_freq == 0:
             self.model.save(self.save_path)  # overwrite latest
+            print("latest model updated")
         return True
 
 save_latest_callback = SaveLatestCallback(
@@ -60,6 +61,7 @@ print("model saved")
 
 # Run trained model
 del model
+N_ENVS = 1
 model = PPO.load("ppo_HumanoidStandup-v5", env=vec_env)
 
 obs = vec_env.reset()
