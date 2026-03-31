@@ -7,13 +7,13 @@ import os
 
 # Config
 N_ENVS = 32
-ROLLOUT_SIZE = 2048 * N_ENVS  # steps per rollout
-TOTAL_TIMESTEPS = 1_000_000  # adjust as desired per run
+ROLLOUT_SIZE = 2048 * N_ENVS
+TOTAL_TIMESTEPS = 1_000_000
 MODEL_PATH = "ppo_HumanoidStandup-v5"
 VECNORM_PATH = MODEL_PATH + "_vecnormalize.pkl"
 
 # Vectorized Environment
-=vec_env = make_vec_env("HumanoidStandup-v5", n_envs=N_ENVS)
+vec_env = make_vec_env("HumanoidStandup-v5", n_envs=N_ENVS)
 vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 
 # Evaluation Environment
@@ -23,7 +23,14 @@ eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=True)
 # Load model if exists
 if os.path.exists(MODEL_PATH + ".zip"):
     model = PPO.load(MODEL_PATH, env=vec_env)
-    print("[INFO] Loaded existing model.")
+    # Detect previous number of timesteps from saved VecNormalize stats
+    if os.path.exists(VECNORM_PATH):
+        vec_env = VecNormalize.load(VECNORM_PATH, vec_env)
+        vec_env.training = True
+        vec_env.norm_reward = True
+        print(f"[INFO] Resuming training from existing model with ~{model.num_timesteps} timesteps")
+    else:
+        print("[WARNING] VecNormalize stats not found. Resuming may be unstable!")
 else:
     model = PPO("MlpPolicy", vec_env, verbose=1)
     print("[INFO] Created new model.")
@@ -67,7 +74,7 @@ model.learn(
 # Final save
 model.save(MODEL_PATH)
 vec_env.save(VECNORM_PATH)
-print("[FINAL SAVE] Model & VecNormalize stats saved.")
+print(f"[FINAL SAVE] Model & VecNormalize stats saved at step {model.num_timesteps}")
 
 # Demo Mode (Single Env)
 print("\n[INFO] Starting demo...")
