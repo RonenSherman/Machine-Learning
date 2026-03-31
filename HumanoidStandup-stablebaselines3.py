@@ -1,71 +1,89 @@
 import gymnasium as gym
-
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import VecNormalize
 from stable_baselines3.common.callbacks import EvalCallback, BaseCallback
+import os
 
+# Config
 N_ENVS = 32
-ROLLOUT_SIZE = 2048 * N_ENVS  # 65536 steps per rollout
+ROLLOUT_SIZE = 2048 * N_ENVS  # steps per rollout
+TOTAL_TIMESTEPS = 1_000_000  # adjust as desired per run
+MODEL_PATH = "ppo_HumanoidStandup-v5"
+VECNORM_PATH = MODEL_PATH + "_vecnormalize.pkl"
 
-vec_env = make_vec_env("HumanoidStandup-v5", n_envs=N_ENVS)
-
-# Normalize observations and rewards (helps stability for Humanoid)
+# Vectorized Environment
+=vec_env = make_vec_env("HumanoidStandup-v5", n_envs=N_ENVS)
 vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 
-# Evaluation env
+# Evaluation Environment
 eval_env = make_vec_env("HumanoidStandup-v5", n_envs=1)
 eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=True)
 
-# Load model
-model = PPO.load("ppo_HumanoidStandup-v5", env=vec_env)
+# Load model if exists
+if os.path.exists(MODEL_PATH + ".zip"):
+    model = PPO.load(MODEL_PATH, env=vec_env)
+    print("[INFO] Loaded existing model.")
+else:
+    model = PPO("MlpPolicy", vec_env, verbose=1)
+    print("[INFO] Created new model.")
 
-# Custom callback: overwrite latest model every rollout
+# Save Latest Callback
 class SaveLatestCallback(BaseCallback):
-    def __init__(self, save_freq, save_path, verbose=0):
+    def __init__(self, save_freq, save_path, verbose=1):
         super().__init__(verbose)
         self.save_freq = save_freq
         self.save_path = save_path
 
     def _on_step(self):
         if self.n_calls % self.save_freq == 0:
-            self.model.save(self.save_path)  # overwrite latest
-            print("latest model updated")
+            self.model.save(self.save_path)
+            self.training_env.save(self.save_path + "_vecnormalize.pkl")
+            print(f"[SAVE] Model & VecNormalize updated at step {self.num_timesteps}")
         return True
 
 save_latest_callback = SaveLatestCallback(
     save_freq=ROLLOUT_SIZE,
-    save_path="ppo_HumanoidStandup-v5"
+    save_path=MODEL_PATH
 )
 
-# Evaluation callback: save best model only
+# Evaluation Callback
 eval_callback = EvalCallback(
     eval_env,
     best_model_save_path="./best/",
     log_path="./logs/",
     eval_freq=ROLLOUT_SIZE,
     deterministic=True,
-    render=False
+    render=False,
 )
 
 # Train the model
 model.learn(
-    total_timesteps=1_000_000,
-    reset_num_timesteps=False,  # continue counting if resuming
+    total_timesteps=TOTAL_TIMESTEPS,
+    reset_num_timesteps=False,
     callback=[save_latest_callback, eval_callback]
 )
 
-# Final save of latest model
-model.save("ppo_HumanoidStandup-v5")
-print("model saved")
+# Final save
+model.save(MODEL_PATH)
+vec_env.save(VECNORM_PATH)
+print("[FINAL SAVE] Model & VecNormalize stats saved.")
 
-# Run trained model
-del model
-N_ENVS = 1
-model = PPO.load("ppo_HumanoidStandup-v5", env=vec_env)
+# Demo Mode (Single Env)
+print("\n[INFO] Starting demo...")
+demo_env = gym.make("HumanoidStandup-v5", render_mode="human")
 
-obs = vec_env.reset()
+# Load normalization stats
+demo_env = VecNormalize.load(VECNORM_PATH, demo_env)
+demo_env.training = False
+demo_env.norm_reward = False
+
+# Load model
+demo_model = PPO.load(MODEL_PATH)
+
+obs = demo_env.reset()
 while True:
-    action, _ = model.predict(obs)
-    obs, rewards, dones, info = vec_env.step(action)
-    vec_env.render("human")
+    action, _ = demo_model.predict(obs, deterministic=True)
+    obs, reward, done, info = demo_env.step(action)
+    if done:
+        obs = demo_env.reset()
