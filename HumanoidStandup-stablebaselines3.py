@@ -37,20 +37,17 @@ else:
 
 # Save Latest Callback
 class SaveLatestCallback(BaseCallback):
-    def __init__(self, save_freq, save_path, verbose=1):
+    def __init__(self, save_path, verbose=1):
         super().__init__(verbose)
-        self.save_freq = save_freq
         self.save_path = save_path
 
-    def _on_step(self):
-        if self.n_calls % self.save_freq == 0:
-            self.model.save(self.save_path)
-            self.training_env.save(self.save_path + "_vecnormalize.pkl")
-            print(f"[SAVE] Model & VecNormalize updated at step {self.num_timesteps}")
+    def _on_rollout_end(self):
+        self.model.save(self.save_path)
+        self.training_env.save(self.save_path + "_vecnormalize.pkl")
+        print(f"[SAVE] Model & VecNormalize updated at step {self.num_timesteps}")
         return True
 
 save_latest_callback = SaveLatestCallback(
-    save_freq=ROLLOUT_SIZE,
     save_path=MODEL_PATH
 )
 
