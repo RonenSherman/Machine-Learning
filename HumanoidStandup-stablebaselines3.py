@@ -18,22 +18,29 @@ vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 
 # Evaluation Environment
 eval_env = make_vec_env("HumanoidStandup-v5", n_envs=1)
-eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=True)
 
 # Load model if exists
 if os.path.exists(MODEL_PATH + ".zip"):
-    model = PPO.load(MODEL_PATH, env=vec_env)
-    # Detect previous number of timesteps from saved VecNormalize stats
+    # FIX 1: load VecNormalize BEFORE model
     if os.path.exists(VECNORM_PATH):
         vec_env = VecNormalize.load(VECNORM_PATH, vec_env)
         vec_env.training = True
         vec_env.norm_reward = True
-        print(f"[INFO] Resuming training from existing model with ~{model.num_timesteps} timesteps")
+        print(f"[INFO] Resuming training from existing model")
     else:
         print("[WARNING] VecNormalize stats not found. Resuming may be unstable!")
+
+    model = PPO.load(MODEL_PATH, env=vec_env)
+
 else:
     model = PPO("MlpPolicy", vec_env, verbose=1)
     print("[INFO] Created new model.")
+
+# FIX 2: sync eval_env normalization with training stats
+if os.path.exists(VECNORM_PATH):
+    eval_env = VecNormalize.load(VECNORM_PATH, eval_env)
+    eval_env.training = False
+    eval_env.norm_reward = False
 
 # Save Latest Callback
 class SaveLatestCallback(BaseCallback):
