@@ -14,18 +14,17 @@ VECNORM_PATH = MODEL_PATH + "_vecnormalize.pkl"
 
 # Vectorized Environment
 vec_env = make_vec_env("HumanoidStandup-v5", n_envs=N_ENVS)
-vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
+vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=False)  # CHANGED
 
 # Evaluation Environment
 eval_env = make_vec_env("HumanoidStandup-v5", n_envs=1)
 
 # Load model if exists
 if os.path.exists(MODEL_PATH + ".zip"):
-    # FIX 1: load VecNormalize BEFORE model
     if os.path.exists(VECNORM_PATH):
         vec_env = VecNormalize.load(VECNORM_PATH, vec_env)
         vec_env.training = True
-        vec_env.norm_reward = True
+        vec_env.norm_reward = False  # CHANGED
         print(f"[INFO] Resuming training from existing model")
     else:
         print("[WARNING] VecNormalize stats not found. Resuming may be unstable!")
@@ -33,10 +32,25 @@ if os.path.exists(MODEL_PATH + ".zip"):
     model = PPO.load(MODEL_PATH, env=vec_env)
 
 else:
-    model = PPO("MlpPolicy", vec_env, verbose=1)
+    policy_kwargs = dict(net_arch=[256, 256, 256])  # ADDED
+
+    model = PPO(
+        "MlpPolicy",
+        vec_env,
+        verbose=1,
+        n_steps=2048,        # ADDED
+        batch_size=4096,     # ADDED
+        n_epochs=10,         # ADDED
+        learning_rate=3e-4,  # ADDED
+        gamma=0.99,          # ADDED
+        gae_lambda=0.95,     # ADDED
+        clip_range=0.2,      # ADDED
+        ent_coef=0.01,       # ADDED
+        policy_kwargs=policy_kwargs  # ADDED
+    )
     print("[INFO] Created new model.")
 
-# FIX 2: sync eval_env normalization with training stats
+# Sync eval_env normalization
 if os.path.exists(VECNORM_PATH):
     eval_env = VecNormalize.load(VECNORM_PATH, eval_env)
     eval_env.training = False
@@ -47,6 +61,9 @@ class SaveLatestCallback(BaseCallback):
     def __init__(self, save_path, verbose=1):
         super().__init__(verbose)
         self.save_path = save_path
+
+    def _on_step(self):
+        return True
 
     def _on_rollout_end(self):
         self.model.save(self.save_path)
@@ -63,7 +80,7 @@ eval_callback = EvalCallback(
     eval_env,
     best_model_save_path="./best/",
     log_path="./logs/",
-    eval_freq=ROLLOUT_SIZE,
+    eval_freq=200_000,  # CHANGED
     deterministic=True,
     render=False,
 )
