@@ -23,6 +23,7 @@ class ActorCritic(nn.Module):
         self.shared = nn.Sequential(
             nn.Linear(8, 256),
             nn.ReLU(),
+            # YYD: why do we want to stack two linear layers?
             nn.Linear(256, 256),
             nn.Linear(256, 256),
             nn.ReLU()

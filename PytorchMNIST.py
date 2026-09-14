@@ -55,6 +55,8 @@ for epoch in range(5):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        # YYD: here we chose to perform one forward and backward per "batch".
+        # Can we do this differently? why and how?
 
     print(f"Epoch {epoch + 1} complete")
 
