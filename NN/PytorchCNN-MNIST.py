@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
+import torch.onnx
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 # Digit Classification using a Convolutional Neural Network
+#                torch.save(model.state_dict(), MODEL_PATH)
 
 # GPU selection
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -29,6 +31,7 @@ test_dataset = datasets.MNIST(
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=32)
 
+model_path = "CNN-MNIST"
 
 # Convolutional Neural Network model
 class CNN(nn.Module):
@@ -95,4 +98,5 @@ with torch.no_grad():
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 
+cnn = model_path
 print(f"Accuracy: {correct / total * 100:.2f}%")
