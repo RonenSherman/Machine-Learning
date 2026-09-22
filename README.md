@@ -10,6 +10,17 @@ Project 3: Lunar Lander RL
 Project 4: Humanoid Standup and walking RL
 
 
+
+
+https://github.com/user-attachments/assets/614bae9b-60c9-4f08-89d0-0e93c281fbd3
+
+
+
+
+
+
+
+
 Learning Sources:
 http://www.incompleteideas.net/book/RLbook2020.pdf
 

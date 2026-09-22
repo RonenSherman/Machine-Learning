@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-TRAIN_FROM_SCRATCH = False
+TRAIN_FROM_SCRATCH = True
 MODEL_PATH = "lunarlander_a2c.pth"
 
 """
@@ -23,6 +23,7 @@ class ActorCritic(nn.Module):
         self.shared = nn.Sequential(
             nn.Linear(8, 256),
             nn.ReLU(),
+            nn.Linear(256, 256),
             nn.Linear(256, 256),
             nn.ReLU()
         )
