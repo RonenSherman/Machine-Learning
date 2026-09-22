@@ -10,8 +10,8 @@ TRAIN_FROM_SCRATCH = True
 
 # WARNING WARNING WARNING
 NUM_ENVS = 16  # DO NOT CHANGE!!! WARNING WARNING DO NOT CHANGE ABOVE 32 AT ALL COSTS
-MODEL_PATH = "humanoid_ppo_best.pth"       # best model path
-BEST_REWARD_FILE = "best_reward.txt"       # file to store best reward
+MODEL_PATH = "humanoid_ppo_best.pth"  # best model path
+BEST_REWARD_FILE = "../Reinforcement Learning/best_reward.txt"  # file to store best reward
 
 CHECKPOINT_INTERVAL = 50  # save every N episodes
 
