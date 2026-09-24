@@ -87,8 +87,8 @@ save_callback = SaveLatestCallback(MODEL_PATH)
 
 eval_callback = EvalCallback(
     eval_env,
-    best_model_save_path="./best/",
-    log_path="./logs/",
+    best_model_save_path="../best/",
+    log_path="../logs/",
     eval_freq=200_000,
     deterministic=True,
     render=False,

@@ -1,7 +1,7 @@
 import math
 import random
 import time
-from Matrix import Matrix
+from NN.Matrix import Matrix
 from tensorflow.keras.datasets import mnist
 
 """NN attempt without NumPY - MNIST dataset"""
