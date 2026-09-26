@@ -100,3 +100,51 @@ with torch.no_grad():
 
 cnn = model_path
 print(f"Accuracy: {correct / total * 100:.2f}%")
+
+
+# Testing loop
+correct = 0
+total = 0
+
+model.eval()
+
+with torch.no_grad():
+    for images, labels in test_loader:
+        images = images.to(device)
+        labels = labels.to(device)
+
+        outputs = model(images)
+        _, predicted = torch.max(outputs, 1)
+
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+print(f"Accuracy: {correct / total * 100:.2f}%")
+
+# SAVE PYTORCH MODEL
+
+MODEL_PATH = "CNN-MNIST.pth"
+torch.save(model.state_dict(), MODEL_PATH)
+
+print(f"Saved PyTorch model to {MODEL_PATH}")
+
+
+# onnx
+
+ONNX_PATH = "CNN-MNIST.onnx"
+
+test_input = torch.randn(1, 1, 28, 28).to(device)
+
+torch.onnx.export(
+    model,
+    test_input,
+    ONNX_PATH,
+    input_names=["input"],
+    output_names=["output"],
+    dynamic_axes={
+        "input": {0: "batch_size"},
+        "output": {0: "batch_size"}
+    }
+)
+
+print(f"Exported ONNX model to {ONNX_PATH}")
